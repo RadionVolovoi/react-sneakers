@@ -1,14 +1,18 @@
 import React from "react";
 import axios from "axios";
-import Card from "./components/Card";
+
 import Header from "./components/Header";
 import Drawer from "./components/Drawer";
+import { Route, Routes } from "react-router-dom";
+import Home from "./pages/Home";
+import Favorites from "./pages/Favorites";
 
 function App() {
   const [items, setItems] = React.useState([]);
   const [cartItems, setCartItems] = React.useState([]);
   const [searchValue, setSearchValue] = React.useState("");
   const [cartOpened, setCartOpened] = React.useState(false);
+  const [favorites, setFavorites] = React.useState([]);
 
   React.useEffect(() => {
     axios.get("https://6447ed9c50c2533744339a45.mockapi.io/items").then((res) => {
@@ -17,11 +21,31 @@ function App() {
     axios.get("https://6447ed9c50c2533744339a45.mockapi.io/cart").then((res) => {
       setCartItems(res.data);
     });
+    axios.get("https://64510355a322196911582cd4.mockapi.io/favorites").then((res) => {
+      setFavorites(res.data);
+    });
   }, []);
 
   const onAddToCart = (obj) => {
     axios.post("https://6447ed9c50c2533744339a45.mockapi.io/cart", obj);
     setCartItems((prev) => [...prev, obj]);
+  };
+
+  const onAddToFavorites = async (obj) => {
+    try {
+      if (favorites.find((favObj) => favObj.id === obj.id)) {
+        axios.delete(`https://64510355a322196911582cd4.mockapi.io/favorites/${obj.id}`);
+        setFavorites((prev) => prev.filter((item) => item.id !== obj.id));
+      } else {
+        const { data } = await axios.post(
+          "https://64510355a322196911582cd4.mockapi.io/favorites",
+          obj
+        );
+        setFavorites((prev) => [...prev, data]);
+      }
+    } catch {
+      alert("Cant add to favorite");
+    }
   };
 
   const onRemoveCart = (id) => {
@@ -42,38 +66,25 @@ function App() {
       )}
 
       <Header onClickCart={() => setCartOpened(true)} />
-      <div className="content p-40">
-        <div className="d-flex align-center justify-between mb-40">
-          <h1>{searchValue ? `Search by request:"${searchValue}"` : "All sneakers"}</h1>
-          <div className="search-block d-flex">
-            <img src="/img/search.svg" alt="Search" />
-            {searchValue && (
-              <img
-                onClick={() => setSearchValue("")}
-                className="clear cu-p"
-                src="/img/btn-remove.svg"
-                alt="Clear"
-              />
-            )}
-            <input onChange={onChangeSearchInput} value={searchValue} placeholder="Search..." />
-          </div>
-        </div>
-
-        <div className="d-flex flex-wrap">
-          {items
-            .filter((item) => item.title.toLowerCase().includes(searchValue.toLocaleLowerCase()))
-            .map((item, index) => (
-              <Card
-                key={index}
-                title={item.title}
-                price={item.price}
-                imageUrl={item.imageUrl}
-                onFavorite={() => console.log("Added to favorite")}
-                onPlus={(obj) => onAddToCart(obj)}
-              />
-            ))}
-        </div>
-      </div>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Home
+              items={items}
+              searchValue={searchValue}
+              onChangeSearchInput={onChangeSearchInput}
+              setSearchValue={setSearchValue}
+              onAddToCart={onAddToCart}
+              onAddToFavorites={onAddToFavorites}
+            />
+          }
+        />
+        <Route
+          path="/favorites"
+          element={<Favorites items={favorites} onAddToFavorites={onAddToFavorites} />}
+        />
+      </Routes>
     </div>
   );
 }
